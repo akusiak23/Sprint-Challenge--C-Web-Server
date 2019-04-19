@@ -12,7 +12,8 @@
 /**
  * Struct to hold all three pieces of a URL
  */
-typedef struct urlinfo_t {
+typedef struct urlinfo_t
+{
   char *hostname;
   char *port;
   char *path;
@@ -28,7 +29,7 @@ typedef struct urlinfo_t {
 urlinfo_t *parse_url(char *url)
 {
   // copy the input URL so as not to mutate the original
-  char *hostname = strdup(url);
+  char *hostname;
   char *port;
   char *path;
 
@@ -45,9 +46,44 @@ urlinfo_t *parse_url(char *url)
     6. Overwrite the colon with a '\0' so that we are just left with the hostname.
   */
 
-  ///////////////////
-  // IMPLEMENT ME! //
-  ///////////////////
+  if (strstr(url, "https://"))
+  {
+    hostname = strdup(url + 8);
+  }
+  else if (strstr(url, "http://"))
+  {
+    hostname = strdup(url + 7);
+  }
+  else
+  {
+    hostname = strdup(url);
+  }
+
+  char *colon = strstr(hostname, ":");
+  if (colon)
+  {
+    port = colon + 1;
+    *colon = '\0';
+  }
+  else
+  {
+    port = "80";
+  }
+
+  char *backslash = strstr(port, "/");
+  if (backslash)
+  {
+    path = backslash + 1;
+    *backslash = '\0';
+  }
+  else
+  {
+    path = "/";
+  }
+
+  urlinfo->hostname = hostname;
+  urlinfo->port = port;
+  urlinfo->path = path;
 
   return urlinfo;
 }
@@ -68,20 +104,26 @@ int send_request(int fd, char *hostname, char *port, char *path)
   char request[max_request_size];
   int rv;
 
-  ///////////////////
-  // IMPLEMENT ME! //
-  ///////////////////
+  int request_length = sprintf(request, "GET /%s HTTP/1.1\nHost: %s:%s\nConnection:close\n\n", path, hostname, port);
+
+  rv = send(fd, request, request_length, 0);
+
+  if (rv < 0)
+  {
+    perror("Error Sending request.");
+  }
 
   return 0;
 }
 
 int main(int argc, char *argv[])
-{  
-  int sockfd, numbytes;  
+{
+  int sockfd, numbytes;
   char buf[BUFSIZE];
 
-  if (argc != 2) {
-    fprintf(stderr,"usage: client HOSTNAME:PORT/PATH\n");
+  if (argc != 2)
+  {
+    fprintf(stderr, "usage: client HOSTNAME:PORT/PATH\n");
     exit(1);
   }
 
@@ -93,9 +135,20 @@ int main(int argc, char *argv[])
     5. Clean up any allocated memory and open file descriptors.
   */
 
-  ///////////////////
-  // IMPLEMENT ME! //
-  ///////////////////
+  urlinfo_t *urlinfo = malloc(sizeof(urlinfo_t));
+  urlinfo = parse_url(argv[1]);
+
+  sockfd = get_socket(urlinfo->hostname, urlinfo->port);
+
+  send_request(sockfd, urlinfo->hostname, urlinfo->port, urlinfo->path);
+
+  while ((numbytes = recv(sockfd, buf, BUFSIZE - 1, 0)) > 0)
+  {
+    fprintf(stdout, "%s\n", buf);
+  }
+
+  free(urlinfo);
+  close(sockfd);
 
   return 0;
 }
